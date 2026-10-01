@@ -1,5 +1,6 @@
 """Exceptions raised by llmfuse."""
 
+
 class LLMFuseError(Exception):
     """Base Class for every error llmfuse raises"""
 
@@ -11,13 +12,13 @@ class ProviderError(LLMFuseError):
     """
 
     def __init__(
-            self,
-            message : str,
-            *,
-            provider : str | None = None,
-            status_code : int | None = None,
-            retryable : bool = True
-        ) -> None :
+        self,
+        message: str,
+        *,
+        provider: str | None = None,
+        status_code: int | None = None,
+        retryable: bool = True,
+    ) -> None:
 
         super().__init__(message)
         self.provider = provider
@@ -28,28 +29,28 @@ class ProviderError(LLMFuseError):
 class RateLimitError(ProviderError):
     """
     The provider said "slow down" (usualy HTTP 429)
-    If the provider tells us how long to wait (the ``Retry-After`` header) 
+    If the provider tells us how long to wait (the ``Retry-After`` header)
     it goes in ``retry_after`` and retry logic respects it.
     """
-    def __init__(
-            self,
-            message : str,
-            *,
-            provider : str | None = None,
-            retry_after : float | None = None
-        ) -> None :
 
-        super().__init__(message, provider = provider, status_code = 429, retryable = True)
+    def __init__(
+        self,
+        message: str,
+        *,
+        provider: str | None = None,
+        retry_after: float | None = None,
+    ) -> None:
+
+        super().__init__(message, provider=provider, status_code=429, retryable=True)
         self.retry_after = retry_after
 
 
 class RetryExhaustedError(LLMFuseError):
     """Every retry attempt"""
-    def __init__(
-        self,
-        attempts : int,
-        last_error : BaseException     
-    ) -> None :
-        super().__init__(f"Gave up after {attempts} attempt(s) : {last_error!r}")
+
+    def __init__(self, attempts: int, last_error: BaseException) -> None:
+        super().__init__(
+            f"Gave up after {attempts} attempt(s) : {last_error!r}"
+        )  # !r means print the raw error as it is
         self.attempts = attempts
         self.last_error = last_error
