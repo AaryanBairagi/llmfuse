@@ -1,6 +1,3 @@
-"""Exceptions raised by llmfuse."""
-
-
 class LLMFuseError(Exception):
     """Base Class for every error llmfuse raises"""
 
@@ -46,7 +43,7 @@ class RateLimitError(ProviderError):
 
 
 class RetryExhaustedError(LLMFuseError):
-    """Every retry attempt"""
+    """Every retry attempt."""
 
     def __init__(self, attempts: int, last_error: BaseException) -> None:
         super().__init__(
@@ -54,3 +51,18 @@ class RetryExhaustedError(LLMFuseError):
         )  # !r means print the raw error as it is
         self.attempts = attempts
         self.last_error = last_error
+
+
+class AllProvidersFailedError(LLMFuseError):
+    """Every provider failed to respond."""
+    def __init__(self , errors : dict[str , BaseException]):
+        summary = "; ".join(f"{name} : {error!r}" for name , error in errors.items())
+        super().__init__(f"All Providers Failed : {summary}")
+        self.errors = errors
+
+
+class CircuitOpenError(LLMFuseError):
+    """We skipped a provider because its circuit breaker is open."""
+    def __init__(self , provider: str):
+        super().__init__(f"Circuit Breaker for Provider : {provider!r} skipped. Redirecting to next provider.")
+        self.provider = provider

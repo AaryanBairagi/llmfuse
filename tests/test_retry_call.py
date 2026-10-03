@@ -65,7 +65,7 @@ def test_on_retry_hook_is_called_before_each_wait():
     assert seen == [(1 , 1.0) , (2 , 2.0)]
 
 
-def programming_bugs_are_not_retried() -> None:
+def test_programming_bugs_are_not_retried() -> None:
     sleep = FalseSleep()
     fn = Flaky(fail_times=1 , error=TypeError("oops"))
     with pytest.raises(TypeError):
