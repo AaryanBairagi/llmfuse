@@ -1,30 +1,37 @@
 """llmfuse: production-grade reliability for LLM calls."""
 
+from llmfuse.breaker import CircuitBreaker, CircuitState
 from llmfuse.client import FuseClient
-from llmfuse.provider import Response, Provider
 from llmfuse.errors import (
+    AllProvidersFailedError,
+    CircuitOpenError,
     LLMFuseError,
     ProviderError,
     RateLimitError,
     RetryExhaustedError,
-    AllProvidersFailedError,
-    CircuitOpenError,
+    ThrottledError,
 )
+from llmfuse.limiter import TokenBucket
+from llmfuse.provider import Provider, Response
 from llmfuse.retry import RetryPolicy, is_retryable, retry_call
 
 __version__ = "0.1.0.dev0"
 
 __all__ = [
+    "AllProvidersFailedError",
+    "CircuitBreaker",
+    "CircuitOpenError",
+    "CircuitState",
     "FuseClient",
-    "Response",
-    "Provider",
     "LLMFuseError",
+    "Provider",
     "ProviderError",
     "RateLimitError",
+    "Response",
     "RetryExhaustedError",
-    "AllProvidersFailedError",
-    "CircuitOpenError",
     "RetryPolicy",
+    "ThrottledError",
+    "TokenBucket",
     "is_retryable",
-    "retry_call",
+    "retry_call"
 ]

@@ -1,28 +1,31 @@
+"""Circuit breaker: stop calling a provider that keeps failing, test it again later."""
+
 import time
-from enum import Enum
 from collections.abc import Callable
+from enum import Enum
+
 
 class CircuitState(Enum):
-    CLOSED = "closed",
-    OPEN = "open",
+    CLOSED = ("closed",)
+    OPEN = ("open",)
     HALF_OPEN = "half_open"
- 
-class CircuitBreaker:
 
+
+class CircuitBreaker:
     def __init__(
-            self,
-            failure_threshold: int,
-            reset_timeout: float,
-            *,
-            clock: Callable[[] , float] = time.monotonic
-        ):
+        self,
+        failure_threshold: int = 5,
+        reset_timeout: float = 30.0,
+        *,
+        clock: Callable[[], float] = time.monotonic,
+    ):
 
         if failure_threshold < 1:
             raise ValueError("Threshold value must be a positive integer.")
 
         if reset_timeout <= 0:
             raise ValueError("Reset timeout must be a positive number of seconds.")
-        
+
         self.failure_threshold = failure_threshold
         self.reset_timeout = reset_timeout
         self._clock = clock
@@ -30,11 +33,9 @@ class CircuitBreaker:
         self._failures = 0
         self._opened_at: float | None = None
 
-
     @property
     def state(self) -> CircuitState:
         return self._state
-
 
     def allow_request(self) -> bool:
         """Should we call this provider right now?"""
@@ -45,20 +46,17 @@ class CircuitBreaker:
             return False
         return True
 
-
     def record_success(self) -> None:
         self._failures = 0
         self._state = CircuitState.CLOSED
 
-
-    def record_failure(self): 
-        if self._state is CircuitState.OPEN:
+    def record_failure(self):
+        if self._state is CircuitState.HALF_OPEN:
             self._trip()
             return
         self._failures += 1
         if self._failures >= self.failure_threshold:
-            self._trip() 
-
+            self._trip()
 
     def _trip(self) -> None:
         self._state = CircuitState.OPEN
