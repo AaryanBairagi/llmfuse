@@ -51,3 +51,9 @@ def test_bucket_never_holds_more_than_capacity() -> None:
     clock.advance(100.0)
     assert bucket.tokens == 3
     assert bucket.time_until_unavailable() == 0.0
+
+
+@pytest.mark.parametrize("bad_settings", [{"rate": 0, "capacity": 3}, {"rate": 1, "capacity": 0}])
+def test_bad_settings_are_rejected(bad_settings: dict) -> None:
+    with pytest.raises(ValueError):
+        TokenBucket(**bad_settings)

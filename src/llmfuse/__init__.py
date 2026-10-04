@@ -1,5 +1,3 @@
-"""llmfuse: production-grade reliability for LLM calls."""
-
 from llmfuse.breaker import CircuitBreaker, CircuitState
 from llmfuse.client import FuseClient
 from llmfuse.errors import (

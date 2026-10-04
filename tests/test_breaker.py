@@ -60,7 +60,7 @@ def test_trips_open_after_threshold() -> None:
 @pytest.mark.parametrize(
     "bad_settings", [{"failure_threshold": 0}, {"reset_timeout": -1.0}]
 )
-def test_bad_settings_were_rejected(bad_settings: dict) -> None:
+def test_bad_settings_are_rejected(bad_settings: dict) -> None:
     with pytest.raises(ValueError):
         CircuitBreaker(**bad_settings)
 

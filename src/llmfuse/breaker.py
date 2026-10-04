@@ -1,5 +1,3 @@
-"""Circuit breaker: stop calling a provider that keeps failing, test it again later."""
-
 import time
 from collections.abc import Callable
 from enum import Enum

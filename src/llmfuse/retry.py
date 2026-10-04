@@ -1,5 +1,3 @@
-"""Retry with exponential backoff and full jitter."""
-
 import random
 import time
 from collections.abc import Callable
@@ -56,7 +54,7 @@ def is_retryable(error: BaseException) -> bool:
     return isinstance(error, (TimeoutError, ConnectionError))
 
 
-def retry_call(
+def retry_call[T](
     fn: Callable[[], T],
     policy: RetryPolicy | None = None,
     *,

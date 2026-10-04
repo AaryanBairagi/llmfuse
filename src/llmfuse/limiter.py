@@ -16,7 +16,7 @@ class TokenBucket:
             raise ValueError("rate must be positive.")
 
         if capacity < 1:
-            raise ValueError("capacity must be less than 1.")
+            raise ValueError("capacity must be atleast 1.")
         
         self.rate = rate
         self.capacity = capacity

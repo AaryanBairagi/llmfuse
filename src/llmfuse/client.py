@@ -51,6 +51,7 @@ class FuseClient:
                 provider.name : TokenBucket(requests_per_minute/60, burst, clock=clock)
                 for provider in providers
             }
+
     def circuit_state(self, provider_name: str) -> CircuitState:
         return self._breakers[provider_name].state
 
@@ -84,14 +85,13 @@ class FuseClient:
 
         raise AllProvidersFailedError(errors)
 
-    
     def _call_with_token(self, provider: Provider, prompt: str) -> str:
         """One attempt: get a token (waiting up to max_wait), then call the provider."""
         bucket = self._buckets.get(provider.name)
         if bucket is None:
             return provider.complete(prompt) #rate limiting is off
 
-        wait = bucket.time_until_unavailale()
+        wait = bucket.time_until_unavailable()
         
         if wait > self.max_wait:
             raise ThrottledError(provider.name, wait)
