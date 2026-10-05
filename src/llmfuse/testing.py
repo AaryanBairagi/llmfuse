@@ -1,4 +1,8 @@
+import json
 from collections.abc import Sequence
+from typing import Any
+
+from llmfuse.transport import HTTPResponse
 
 
 class FakeProvider:
@@ -28,3 +32,30 @@ class FakeClock:
 
     def advance(self, seconds: float) -> None:
         self.now += seconds
+
+
+class FakeTransport:
+    """A pretend network: returns (or raises) the given items in order, records requests."""
+
+    def __init__(self, response: Sequence[HTTPResponse | Exception]):
+        self._responses = list(response)
+        self.requests: list[dict[str, Any]] = []
+
+    def __call__(
+        self, url: str, headers: dict[str, str], body: bytes, timeout: float
+    ) -> HTTPResponse:
+        self.requests.append(
+            {
+                "url": url,
+                "headers": headers,
+                "json": json.loads(body),
+                "timeout": timeout,
+            }
+        )
+
+        item = self._responses.pop(0)
+
+        if isinstance(item, Exception):
+            raise item
+
+        return item

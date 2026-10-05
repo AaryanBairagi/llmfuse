@@ -22,9 +22,9 @@ class FuseClient:
         retry: RetryPolicy | None = None,
         failure_threshold: int = 5,
         reset_timeout: float = 30.0,
-        requests_per_minute : float | None = None,
-        burst : int = 5,    #bucket capacity
-        max_wait : float = 1.0,
+        requests_per_minute: float | None = None,
+        burst: int = 5,  # bucket capacity
+        max_wait: float = 1.0,
         sleep: Callable[[float], None] = time.sleep,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
@@ -44,11 +44,11 @@ class FuseClient:
             for provider in providers
         }
         self.max_wait = max_wait
-        self._buckets : dict[str , TokenBucket] = {}
+        self._buckets: dict[str, TokenBucket] = {}
 
-        if requests_per_minute is not None: #rate limit is on
+        if requests_per_minute is not None:  # rate limit is on
             self._buckets = {
-                provider.name : TokenBucket(requests_per_minute/60, burst, clock=clock)
+                provider.name: TokenBucket(requests_per_minute / 60, burst, clock=clock)
                 for provider in providers
             }
 
@@ -57,7 +57,7 @@ class FuseClient:
 
     def complete(self, prompt: str) -> Response:
         errors: dict[str, BaseException] = {}
-        #Loop over providers and instantiate a breaker, token bucket for each provider
+        # Loop over providers and instantiate a breaker, token bucket for each provider
         for provider in self.providers:
             breaker = self._breakers[provider.name]
             if not breaker.allow_request():
@@ -89,14 +89,14 @@ class FuseClient:
         """One attempt: get a token (waiting up to max_wait), then call the provider."""
         bucket = self._buckets.get(provider.name)
         if bucket is None:
-            return provider.complete(prompt) #rate limiting is off
+            return provider.complete(prompt)  # rate limiting is off
 
         wait = bucket.time_until_unavailable()
-        
+
         if wait > self.max_wait:
             raise ThrottledError(provider.name, wait)
-        
+
         if wait > 0:
-            self._sleep(wait) 
+            self._sleep(wait)
         bucket.consume()
         return provider.complete(prompt)
