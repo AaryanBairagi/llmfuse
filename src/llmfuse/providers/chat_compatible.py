@@ -77,7 +77,7 @@ class ChatCompatibleProvider:
             data = json.loads(body)
             content = data["choices"][0]["message"]["content"]
 
-        except (ValueError, KeyError, IndexError, TypeError) as error:
+        except (ValueError, KeyError, IndexError, TypeError):
             raise ProviderError(
                 f"{self.name}: unexpected response format",
                 provider=self.name,  

@@ -29,7 +29,7 @@ class CircuitBreaker:
         self._clock = clock
         self._state = CircuitState.CLOSED
         self._failures = 0
-        self._opened_at: float | None = None
+        self._opened_at: float = 0.0
 
     @property
     def state(self) -> CircuitState:

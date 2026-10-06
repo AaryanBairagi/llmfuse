@@ -57,7 +57,7 @@ class  AnthropicProvider:
             response = self._transport(url, headers, json.dumps(payload).encode(), self.timeout)
 
         except (TimeoutError , ConnectionError) as error:
-            raise ProviderError(f"{self.name} network error : {error}", provider={self.name}, retryable=True) from error
+            raise ProviderError(f"{self.name} network error : {error}", provider=self.name, retryable=True) from error
 
         if response.status != 200:
             raise error_from_response(self.name , response)

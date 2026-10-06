@@ -54,7 +54,7 @@ def is_retryable(error: BaseException) -> bool:
     return isinstance(error, (TimeoutError, ConnectionError))
 
 
-def retry_call[T](
+def retry_call(
     fn: Callable[[], T],
     policy: RetryPolicy | None = None,
     *,
