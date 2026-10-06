@@ -13,7 +13,7 @@ T = TypeVar("T")
 class RetryPolicy:
     """Settings that decide how long to wait between retries."""
 
-    max_attempts: int = 4  # total tries, including the first one
+    max_attempts: int = 4  
     base_delay: float = 1.0  # wait before the first retry (seconds)
     multiplier: float = 2.0  # how fast the wait grows (2.0 = doubling)
     max_delay: float = 30.0  # cap on any single wait

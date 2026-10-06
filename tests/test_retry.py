@@ -39,6 +39,7 @@ def test_policy_is_immutable():
     "bad_settings",
     [{"max_attempts": 0}, {"max_delay": -1}, {"base_delay": -1}, {"multiplier": 0.5}],
 )
+
 def test_bad_settings_are_rejected(bad_settings: dict) -> None:
     with pytest.raises(ValueError):
         RetryPolicy(**bad_settings)

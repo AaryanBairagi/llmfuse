@@ -1,36 +1,33 @@
 import os
 
 from llmfuse import AllProvidersFailedError, FuseClient
-from llmfuse.providers import GeminiProvider, GroqProvider
+from llmfuse.providers import AnthropicProvider, GeminiProvider, GroqProvider
 
 
 def main() -> None:
 
-    # A deliberately broken provider first, to SEE failover happen:
-    groq1 = GroqProvider(
-        model=os.environ["GROQ_MODEL"], api_key="bad-key", name="groq-broken"
-    )
-    groq2 = (GroqProvider(model=os.environ["GROQ_MODEL"]),)
-    gemini = (GeminiProvider(model=os.environ["GEMINI_MODEL"]),)
+        groq = GroqProvider(model=os.environ["GROQ_MODEL"], requests_per_minute=30)
+        gemini = GeminiProvider(model=os.environ["GEMINI_MODEL"], requests_per_minute=15)
+        claude = AnthropicProvider(model=os.environ["ANTHROPIC_MODEL"])
 
-    providers = [groq1, groq2, gemini]
-    client = FuseClient(
-        providers=providers,
-        requests_per_minute=30,
-    )
+        providers = [groq, gemini, claude]
+        
+        client = FuseClient(
+            providers= providers,
+            requests_per_minute=50,   #system-wide limit
+        )
 
-    try:
-        prompt = "Explain RAG in short."
-        response = client.complete(prompt)
+        try:
+            prompt="Explain RAG in short."
+            response = client.complete(prompt)
 
-    except AllProvidersFailedError as error:
-        print("All providers failed : ")
-        for name, reason in error.errors.items():
-            print(f" {name} : {reason}")
-        raise SystemExit(1) from error
+        except AllProvidersFailedError as error:
+            print("All providers failed : ")
+            for name , reason in error.errors.items():
+                 print(f" {name} : {reason}")
+            raise SystemExit(1) from error
 
-    print(f"{[response.provider]} : {response.text}")
-
+        print(f"{[response.provider]} : {response.text}")
 
 if __name__ == "__main__":
     main()

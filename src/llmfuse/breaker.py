@@ -4,8 +4,8 @@ from enum import Enum
 
 
 class CircuitState(Enum):
-    CLOSED = ("closed",)
-    OPEN = ("open",)
+    CLOSED = "closed",
+    OPEN = "open",
     HALF_OPEN = "half_open"
 
 

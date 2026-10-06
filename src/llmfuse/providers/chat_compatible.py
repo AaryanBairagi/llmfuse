@@ -6,70 +6,68 @@ from llmfuse.transport import Transport, error_from_response, urllib_transport
 
 
 class ChatCompatibleProvider:
-    default_name: str = "openai_compatible"
-    default_base_url: str = ""
-    api_key_env: str = ""
+
+    default_name : str = "openai_compatible"
+    default_base_url : str = ""
+    api_key_env : str = ""
 
     def __init__(
-        self,
-        *,
-        model: str,
-        api_key: str | None = None,
-        base_url: str | None = None,
-        name: str | None = None,
-        max_tokens: int = 1024,
-        timeout: float = 30.0,
-        transport: Transport = urllib_transport,
+            self,
+            *,
+            model: str,
+            api_key: str | None = None,
+            base_url: str | None = None,
+            name:str | None = None,
+            max_tokens: int = 1024,
+            timeout: float = 30.0,
+            requests_per_minute : float | None = None,
+            transport : Transport = urllib_transport
     ) -> None:
 
         self.model = model
         self.name = name or self.default_name
         self.max_tokens = max_tokens
         self.timeout = timeout
+        self.requests_per_minute = requests_per_minute
+
         self._transport = transport
 
-        self._base_url = (base_url or self.default_base_url).rstrip("/")
+        self._base_url = (base_url or self.default_base_url).rstrip('/')
         if not self._base_url:
             raise ValueError(f"{self.name} : base url is required.")
 
         if api_key is None and self.api_key_env:
             api_key = os.environ.get(self.api_key_env)
 
-        if self.api_key_env and not api_key:
-            raise ValueError(
-                f"{self.name}: no API key. Pass api_key=... or set {self.api_key_env}"
-            )
-
+        if self.api_key_env and not api_key:    
+            raise ValueError(f"{self.name}: no API key. Pass api_key=... or set {self.api_key_env}")
+        
         self._api_key = api_key or ""
 
     def complete(self, prompt: str) -> str:
         url = f"{self._base_url}/chat/completions"
-
-        headers = {"Content-Type": "application/json"}
+        
+        headers = {"Content-Type" : "application/json"}
         if self._api_key:
             headers["Authorization"] = f"Bearer {self._api_key}"
 
         payload = {
-            "model": self.model,
-            "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": self.max_tokens,
+            "model" : self.model,
+            "messages" : [{"role" : "user" , "content" : prompt}],
+            "max_tokens" : self.max_tokens
         }
 
         try:
-            response = self._transport(
-                url, headers, json.dumps(payload).encode(), self.timeout
-            )
+            response = self._transport(url, headers, json.dumps(payload).encode(), self.timeout)
 
-        except (TimeoutError, ConnectionError) as error:
+        except (TimeoutError , ConnectionError) as error: 
             raise ProviderError(
-                f"{self.name} - network-error : {error} ",
-                provider=self.name,
-                retryable=True,
+                f"{self.name} - network-error : {error} " , provider=self.name , retryable=True
             ) from error
 
         if response.status != 200:
-            raise error_from_response(self.name, response)
-
+            raise error_from_response(self.name , response)
+        
         return self._parse(response.body)
 
     # JSON shape for chat requests: send to /chat/completions, put the prompt in messages, read the answer from choices[0].message.content
@@ -82,17 +80,16 @@ class ChatCompatibleProvider:
         except (ValueError, KeyError, IndexError, TypeError) as error:
             raise ProviderError(
                 f"{self.name}: unexpected response format",
-                provider={self.name},
+                provider=self.name,  
                 retryable=False,
             )
 
         if not isinstance(content, str):
             raise ProviderError(
                 f"{self.name}: response had no text",
-                provider={self.name},
+                provider=self.name,  
                 retryable=False,
             )
-
         return content
 
 
@@ -112,3 +109,5 @@ class OpenAIProvider(ChatCompatibleProvider):
     default_name = "openai"
     default_base_url = "https://api.openai.com/v1"
     api_key_env = "OPENAI_API_KEY"
+
+
