@@ -85,17 +85,17 @@ timeouts and full outages. Handling all of that correctly takes more than a `try
 
 ## Features
 
-| | Feature | What it gives you |
-|---|---|---|
-| 🔁 | **Retries with backoff + full jitter** | Temporary failures are retried with growing, randomised waits. `Retry-After` headers are honoured. |
-| 🔀 | **Multi-provider failover** | Providers are tried in your priority order until one answers. |
-| ⚡ | **Per-provider circuit breakers** | A provider that keeps failing is skipped instantly, then re-tested after a cool-down. |
-| 🪣 | **Per-provider rate limiting** | A token bucket allows short bursts while enforcing a requests-per-minute budget. |
-| 🧭 | **Smart error classification** | 429/5xx/timeouts are retried; 400/401/403/404 fail over immediately; bugs in your code are never hidden. |
-| 🔌 | **Any LLM** | Groq, Gemini, OpenAI, Anthropic, local Ollama, or any OpenAI-compatible API, or your own provider class. |
-| 📦 | **Zero runtime dependencies** | HTTP is handled by Python's standard library. Installing llmfuse adds nothing else. |
-| 🧪 | **Testing utilities included** | Fake providers, clocks and transports let you test your app offline, instantly and deterministically. |
-| 🏷️ | **Fully typed** | Ships `py.typed`; checked with mypy. |
+| Feature | What it gives you |
+|---|---|
+| **Retries with backoff + full jitter** | Temporary failures are retried with growing, randomised waits. `Retry-After` headers are honoured. |
+| **Multi-provider failover** | Providers are tried in your priority order until one answers. |
+| **Per-provider circuit breakers** | A provider that keeps failing is skipped instantly, then re-tested after a cool-down. |
+| **Per-provider rate limiting** | A token bucket allows short bursts while enforcing a requests-per-minute budget. |
+| **Smart error classification** | 429/5xx/timeouts are retried; 400/401/403/404 fail over immediately; bugs in your code are never hidden. |
+| **Any LLM** | Groq, Gemini, OpenAI, Anthropic, local Ollama, or any OpenAI-compatible API, or your own provider class. |
+| **Zero runtime dependencies** | HTTP is handled by Python's standard library. Installing llmfuse adds nothing else. |
+| **Testing utilities included** | Fake providers, clocks and transports let you test your app offline, instantly and deterministically. |
+| **Fully typed** | Ships `py.typed`; checked with mypy. |
 
 ---
 
