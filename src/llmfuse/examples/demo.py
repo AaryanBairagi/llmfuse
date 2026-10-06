@@ -1,9 +1,7 @@
 import os
-from llmfuse import FuseClient, AllProvidersFailedError
-from llmfuse.providers import GeminiProvider, GroqProvider
-import dotenv
 
-dotenv.load_dotenv()
+from llmfuse import AllProvidersFailedError, FuseClient
+from llmfuse.providers import GeminiProvider, GroqProvider
 
 
 def main() -> None:
