@@ -39,7 +39,7 @@ class FakeClock:
 class FakeTransport:
     """A pretend network: returns (or raises) the given items in order, records requests."""
 
-    def __init__(self, response: Sequence[HTTPResponse | Exception]):
+    def __init__(self, response: Sequence[HTTPResponse | Exception]) -> None:
         self._responses = list(response)
         self.requests: list[dict[str, Any]] = []
 

@@ -64,7 +64,7 @@ class CircuitOpenError(LLMFuseError):
     """We skipped a provider because its circuit breaker is open."""
 
     def __init__(self, provider: str):
-        super().__init__(f"Circuit Breaker for Provider : {provider!r} skipped. Redirecting to next provider.")
+        super().__init__(f"Circuit open for provider {provider!r}: skipped without calling it.")
         self.provider = provider
 
 
