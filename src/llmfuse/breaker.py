@@ -4,8 +4,8 @@ from enum import Enum
 
 
 class CircuitState(Enum):
-    CLOSED = "closed",
-    OPEN = "open",
+    CLOSED = "closed"
+    OPEN = "open"
     HALF_OPEN = "half_open"
 
 
@@ -16,7 +16,7 @@ class CircuitBreaker:
         reset_timeout: float = 30.0,
         *,
         clock: Callable[[], float] = time.monotonic,
-    ):
+    ) -> None:
 
         if failure_threshold < 1:
             raise ValueError("Threshold value must be a positive integer.")
@@ -48,7 +48,7 @@ class CircuitBreaker:
         self._failures = 0
         self._state = CircuitState.CLOSED
 
-    def record_failure(self):
+    def record_failure(self) -> None:
         if self._state is CircuitState.HALF_OPEN:
             self._trip()
             return

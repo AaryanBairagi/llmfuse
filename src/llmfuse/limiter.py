@@ -42,7 +42,7 @@ class TokenBucket:
 
 
     #formula for waiting time x rate + tokens = 1
-    def time_until_unavailable(self) -> float:
+    def time_until_available(self) -> float:
         """Seconds until one token is available (0.0 if one is available now)."""
         self._refill()
         if self._tokens >= 1:

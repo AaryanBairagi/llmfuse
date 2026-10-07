@@ -1,3 +1,5 @@
+from importlib.metadata import version
+
 from llmfuse.breaker import CircuitBreaker, CircuitState
 from llmfuse.client import FuseClient
 from llmfuse.errors import (
@@ -13,8 +15,6 @@ from llmfuse.limiter import TokenBucket
 from llmfuse.provider import Provider, Response
 from llmfuse.retry import RetryPolicy, is_retryable, retry_call
 from llmfuse.transport import Transport, error_from_response, urllib_transport
-
-__version__ = "0.1.0.dev0"
 
 __all__ = [
     "AllProvidersFailedError",
@@ -37,3 +37,6 @@ __all__ = [
     "retry_call",
     "urllib_transport"
 ]
+
+__version__ = version("llmfuse")
+

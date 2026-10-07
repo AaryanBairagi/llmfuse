@@ -3,7 +3,7 @@ import json
 import pytest
 
 from llmfuse.errors import ProviderError, RateLimitError
-from llmfuse.providers import GroqProvider
+from llmfuse.providers import GroqProvider, OpenAIProvider
 from llmfuse.testing import FakeTransport
 from llmfuse.transport import HTTPResponse
 
@@ -38,7 +38,7 @@ def test_sends_an_openai_request() -> None:
 
 
 def test_429_becomes_rate_limit_error_with_retry_after() -> None:
-    transport = FakeTransport([HTTPResponse(429, "slow-down", {"retry-after" : 7})])
+    transport = FakeTransport([HTTPResponse(429, "slow-down", {"retry-after": "7"})])
     with pytest.raises(RateLimitError) as rlerr :
         make_groq(transport).complete("hello")
 
@@ -102,3 +102,21 @@ def test_adapter_remembers_its_requests() -> None:
     assert groq.requests_per_minute == 30.0
     groq1 = GroqProvider(model="model_m", api_key="test_api_key")
     assert groq1.requests_per_minute is None
+
+
+def test_openai_sends_max_completion_tokens() -> None:
+    transport = FakeTransport([chat_response("hi")])
+    OpenAIProvider(model="test-model", api_key="k", transport=transport).complete("hello")
+
+    body = transport.requests[0]["json"]
+    assert body["max_completion_tokens"] == 1024
+    assert "max_tokens" not in body
+
+
+def test_groq_still_sends_max_tokens() -> None:
+    transport = FakeTransport([chat_response("hi")])
+    make_groq(transport).complete("hello")
+
+    body = transport.requests[0]["json"]
+    assert body["max_tokens"] == 1024
+    assert "max_completion_tokens" not in body

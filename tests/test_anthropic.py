@@ -88,7 +88,7 @@ def test_client_errors_are_not_retryable(status: int) -> None:
 
 
 @pytest.mark.parametrize("status", [500, 501, 502, 503])
-def test_client_errors_are_retryable(status: int) -> None:
+def test_server_errors_are_retryable(status: int) -> None:
     transport = FakeTransport([HTTPResponse(status, "server error")])
     with pytest.raises(ProviderError) as error:
         make_claude(transport).complete("hello")
@@ -128,3 +128,14 @@ def test_fails_over_from_chat_format_to_anthropic_format() -> None:
     response = client.complete("hello")
     assert response.provider == "anthropic"
     assert response.text == "hi"
+
+
+def test_network_error_becomes_retryable_provider_error() -> None:
+      def broken_transport(url: str, headers: dict[str, str], body: bytes, timeout: float) -> HTTPResponse:
+          raise ConnectionError("connection refused")
+
+      claude = AnthropicProvider(model="m", api_key="k", transport=broken_transport)
+      with pytest.raises(ProviderError) as exc_info:
+          claude.complete("hi")
+      assert exc_info.value.provider == "anthropic"
+      assert exc_info.value.retryable is True

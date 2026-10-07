@@ -1,5 +1,3 @@
-<!-- TODO after Phase 4: add CI, PyPI version and coverage badges here. -->
-
 <div align="center">
 
 # llmfuse
@@ -8,8 +6,10 @@
 <br/>
 Retries with backoff · Circuit breakers · Rate limiting · Multi-provider failover. One call.
 
+[![CI](https://github.com/AaryanBairagi/llmfuse/actions/workflows/ci.yml/badge.svg)](https://github.com/AaryanBairagi/llmfuse/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/llmfuse?color=2A6DB2)](https://pypi.org/project/llmfuse/)
 [![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org)
-[![License: MIT](https://img.shields.io/badge/license-MIT-22C55E)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-22C55E)](https://github.com/AaryanBairagi/llmfuse/blob/main/LICENSE)
 [![Dependencies](https://img.shields.io/badge/runtime%20dependencies-0-22C55E)](#design-principles)
 [![Typed](https://img.shields.io/badge/typing-mypy%20checked-2A6DB2)](https://mypy-lang.org)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
@@ -31,8 +31,8 @@ If Groq is slow, rate-limited or down, `llmfuse` retries it sensibly, stops call
 clearly broken, and answers from Gemini instead. Your application just gets a response.
 
 > [!NOTE]
-> **llmfuse is in alpha (`0.1.0.dev0`).** The core is complete and fully tested, but the public API may
-> still change before `1.0`. It is not yet published to PyPI. Install from GitHub (see [Installation](#installation)).
+> **llmfuse is in alpha (`0.1.0`).** The core is complete, fully tested and verified live against Groq,
+> Gemini, OpenAI and Anthropic, but the public API may still change before `1.0`.
 
 ---
 
@@ -105,14 +105,13 @@ timeouts and full outages. Handling all of that correctly takes more than a `try
 
 ```bash
 # pip
-pip install "git+https://github.com/AaryanBairagi/llmfuse"
+pip install llmfuse
 
 # uv
-uv add "git+https://github.com/AaryanBairagi/llmfuse"
+uv add llmfuse
 ```
 
-> [!TIP]
-> Once llmfuse is released on PyPI, this becomes `pip install llmfuse`. Watch the repository to be notified.
+To try the latest unreleased code instead: `pip install "git+https://github.com/AaryanBairagi/llmfuse"`.
 
 Verify the installation:
 
@@ -133,7 +132,7 @@ You need a key for at least one provider. Two or more are needed to see failover
 | Groq | [console.groq.com](https://console.groq.com) | Yes |
 | Google Gemini | [Google AI Studio](https://aistudio.google.com) | Yes |
 | OpenAI | [platform.openai.com](https://platform.openai.com) | Paid |
-| Anthropic | Claude Console | Paid |
+| Anthropic | [platform.claude.com](https://platform.claude.com) | Paid |
 
 ### Step 2: Configure your environment
 
@@ -380,9 +379,27 @@ client = FuseClient(
 Every attempt counts against the budget, **including retries**, because providers count every HTTP call.
 Being throttled by your own limiter never counts as a provider failure for the circuit breaker.
 
-> [!IMPORTANT]
-> Today one `requests_per_minute` value applies to every provider. Per-provider limits are on the
-> [roadmap](#roadmap). Until then, set it to the limit of your *strictest* provider.
+#### Per-provider limits
+
+Providers usually have different limits. Give each provider its own `requests_per_minute`; the client's
+value becomes the default for providers that don't set one:
+
+```python
+client = FuseClient(
+    providers=[
+        GroqProvider(model="...", requests_per_minute=30),    # Groq's limit
+        GeminiProvider(model="...", requests_per_minute=15),  # Gemini's limit
+        AnthropicProvider(model="..."),                       # uses the default below
+    ],
+    requests_per_minute=50,  # default for providers without their own limit
+)
+```
+
+| Provider sets `requests_per_minute`? | Client sets it? | Limit used |
+|---|---|---|
+| Yes | either | The provider's own |
+| No | Yes | The client's default |
+| No | No | Unlimited |
 
 ### 5. Handle errors
 
@@ -515,10 +532,11 @@ def test_my_feature_survives_an_outage() -> None:
 | Groq | `GroqProvider` | Chat completions | Bearer | `GROQ_API_KEY` | ✅ |
 | Google Gemini | `GeminiProvider` | Chat completions (OpenAI-compatible endpoint) | Bearer | `GEMINI_API_KEY` | ✅ |
 | OpenAI | `OpenAIProvider` | Chat completions | Bearer | `OPENAI_API_KEY` | ✅ |
-| Anthropic | `AnthropicProvider` | Messages API | `x-api-key` | `ANTHROPIC_API_KEY` | 🚧 In progress |
+| Anthropic | `AnthropicProvider` | Messages API | `x-api-key` | `ANTHROPIC_API_KEY` | ✅ |
 | Any compatible API | `ChatCompatibleProvider` | Chat completions | Bearer (optional) | pass `api_key=` | ✅ |
 
-All built-in providers are imported from `llmfuse.providers`.
+All built-in providers are imported from `llmfuse.providers`. `OpenAIProvider` sends `max_completion_tokens`
+(required by OpenAI's reasoning models); the other chat-completions providers send `max_tokens`.
 
 ---
 
@@ -550,7 +568,7 @@ FuseClient(
 | `retry` | `RetryPolicy()` | Retry behaviour applied to each provider. |
 | `failure_threshold` | `5` | Consecutive failed requests before a provider's circuit opens. |
 | `reset_timeout` | `30.0` | Seconds an open circuit waits before allowing a trial request. |
-| `requests_per_minute` | `None` | Per-provider rate limit. `None` disables rate limiting. |
+| `requests_per_minute` | `None` | Default rate limit for providers that don't set their own. `None` means no default. |
 | `burst` | `5` | Token-bucket capacity (maximum back-to-back requests). |
 | `max_wait` | `1.0` | Longest time to wait for rate-limit capacity before failing over. |
 | `sleep` | `time.sleep` | Sleep function. Override in tests. |
@@ -614,6 +632,7 @@ ChatCompatibleProvider(
     name: str | None = None,
     max_tokens: int = 1024,
     timeout: float = 30.0,
+    requests_per_minute: float | None = None,
 )
 ```
 
@@ -625,11 +644,12 @@ ChatCompatibleProvider(
 | `name` | Provider name used in responses, errors and breaker state. Defaults to the preset name (`"groq"`, ...). |
 | `max_tokens` | Maximum tokens in the answer. |
 | `timeout` | Network timeout per attempt, in seconds. |
+| `requests_per_minute` | This provider's own rate limit. Overrides the client's default. |
 
 </details>
 
 <details>
-<summary><b><code>AnthropicProvider</code></b> 🚧</summary>
+<summary><b><code>AnthropicProvider</code></b></summary>
 
 <br/>
 
@@ -641,6 +661,7 @@ AnthropicProvider(
     name: str = "anthropic",
     max_tokens: int = 1024,
     timeout: float = 60.0,
+    requests_per_minute: float | None = None,
 )
 ```
 
@@ -747,6 +768,17 @@ documentation or console.
 </details>
 
 <details>
+<summary><b>Gemini requests time out (<code>The read operation timed out</code>)</b></summary>
+
+<br/>
+
+Gemini 3 models always think before they answer, and on the free tier one reply can take longer than the
+default 30-second timeout. Use a lighter model such as `gemini-3.5-flash-lite`, or give the provider more
+time: `GeminiProvider(model=..., timeout=90)`.
+
+</details>
+
+<details>
 <summary><b>Responses are sometimes very slow</b></summary>
 
 <br/>
@@ -824,7 +856,7 @@ In the spirit of honest engineering, here is what llmfuse does **not** do yet:
 |---|---|
 | Concurrency | `FuseClient` is synchronous and **not thread-safe**. Use one client per thread, or guard calls with a lock. Async support is planned. |
 | Prompt format | Single-turn text prompts only. No system prompts, multi-turn history, streaming, tool calls or images yet. |
-| Rate limits | One `requests_per_minute` for all providers (per-provider limits are planned). |
+| Timeouts | `timeout` applies per attempt. There is no overall time budget yet, so a provider that keeps timing out can take `max_attempts × timeout` before failover. |
 | `Retry-After` | Numeric seconds are honoured; HTTP-date values fall back to normal backoff. |
 | Observability | No built-in logging or metrics hooks on `FuseClient` yet. |
 | State | Breaker and rate-limit state live in memory, per client instance. |
@@ -838,11 +870,12 @@ In the spirit of honest engineering, here is what llmfuse does **not** do yet:
 - [x] Per-provider circuit breakers
 - [x] Per-provider token-bucket rate limiting
 - [x] Groq, Gemini, OpenAI and generic OpenAI-compatible adapters
-- [ ] Anthropic Messages API adapter
-- [ ] Per-provider rate limits declared by each provider
-- [ ] Continuous integration across Python 3.10–3.13
+- [x] Anthropic Messages API adapter
+- [x] Per-provider rate limits declared by each provider
+- [x] Continuous integration across Python 3.10–3.13
+- [x] First PyPI release
 - [ ] Benchmarks under simulated outages
-- [ ] First PyPI release
+- [ ] Overall time budget (deadline) across retries and providers
 - [ ] Async client
 - [ ] System prompts and multi-turn conversations
 - [ ] Logging and metrics hooks
@@ -865,6 +898,7 @@ uv sync                     # creates .venv and installs dev tools from uv.lock
 |---|---|
 | Run the test suite (offline) | `uv run pytest` |
 | Also run live provider tests | `uv run --env-file .env pytest -k live` |
+| Check your keys and models work | `uv run --env-file .env examples/check_providers.py` |
 | Format | `uv run ruff format .` |
 | Lint | `uv run ruff check .` |
 | Type-check | `uv run mypy src/llmfuse` |
@@ -897,7 +931,7 @@ so the default test run is free, fast and needs no network.
 
 ## License
 
-Released under the [MIT License](LICENSE). © 2026 [Aaryan Bairagi](https://github.com/AaryanBairagi)
+Released under the [MIT License](https://github.com/AaryanBairagi/llmfuse/blob/main/LICENSE). © 2026 [Aaryan Bairagi](https://github.com/AaryanBairagi)
 
 <div align="center">
 

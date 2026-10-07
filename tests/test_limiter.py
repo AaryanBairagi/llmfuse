@@ -13,16 +13,16 @@ def test_initiate_bucket() -> None:
     clock = FakeClock()
     bucket = make_bucket(clock)
     assert bucket.tokens == 3
-    assert bucket.time_until_unavailable() == 0.0
+    assert bucket.time_until_available() == 0.0
 
 
 def test_allows_burst_up_to_capacity() -> None:
     clock = FakeClock()
     bucket = make_bucket(clock)
     for _ in range(3):
-        assert bucket.time_until_unavailable() == 0.0
+        assert bucket.time_until_available() == 0.0
         bucket.consume()
-    assert bucket.time_until_unavailable() == pytest.approx(2.0)      #becuase rate=0.5, tokens=0 => 1-0 / 0.5 = 2.0
+    assert bucket.time_until_available() == pytest.approx(2.0)      #becuase rate=0.5, tokens=0 => 1-0 / 0.5 = 2.0
 
 
 def test_refills_over_time() -> None:
@@ -32,7 +32,7 @@ def test_refills_over_time() -> None:
         bucket.consume()
     clock.advance(2.0)
     assert bucket.tokens == 1.0
-    assert bucket.time_until_unavailable() == 0.0
+    assert bucket.time_until_available() == 0.0
 
 
 def test_partial_token_shorter_wait() -> None:
@@ -42,7 +42,7 @@ def test_partial_token_shorter_wait() -> None:
         bucket.consume()
     clock.advance(1.0)
     assert bucket.tokens == 0.5
-    assert bucket.time_until_unavailable() == 1.0
+    assert bucket.time_until_available() == 1.0
 
 
 def test_bucket_never_holds_more_than_capacity() -> None:
@@ -50,7 +50,7 @@ def test_bucket_never_holds_more_than_capacity() -> None:
     bucket = make_bucket(clock)
     clock.advance(100.0)
     assert bucket.tokens == 3
-    assert bucket.time_until_unavailable() == 0.0
+    assert bucket.time_until_available() == 0.0
 
 
 @pytest.mark.parametrize("bad_settings", [{"rate": 0, "capacity": 3}, {"rate": 1, "capacity": 0}])

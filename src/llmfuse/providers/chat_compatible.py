@@ -10,6 +10,7 @@ class ChatCompatibleProvider:
     default_name : str = "openai_compatible"
     default_base_url : str = ""
     api_key_env : str = ""
+    max_tokens_field: str = "max_tokens" 
 
     def __init__(
             self,
@@ -54,7 +55,7 @@ class ChatCompatibleProvider:
         payload = {
             "model" : self.model,
             "messages" : [{"role" : "user" , "content" : prompt}],
-            "max_tokens" : self.max_tokens
+            self.max_tokens_field: self.max_tokens,
         }
 
         try:
@@ -77,12 +78,12 @@ class ChatCompatibleProvider:
             data = json.loads(body)
             content = data["choices"][0]["message"]["content"]
 
-        except (ValueError, KeyError, IndexError, TypeError):
+        except (ValueError, KeyError, IndexError, TypeError) as error:
             raise ProviderError(
                 f"{self.name}: unexpected response format",
                 provider=self.name,  
                 retryable=False,
-            )
+            ) from error
 
         if not isinstance(content, str):
             raise ProviderError(
@@ -109,5 +110,4 @@ class OpenAIProvider(ChatCompatibleProvider):
     default_name = "openai"
     default_base_url = "https://api.openai.com/v1"
     api_key_env = "OPENAI_API_KEY"
-
-
+    max_tokens_field = "max_completion_tokens"

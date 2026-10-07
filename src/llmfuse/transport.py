@@ -2,6 +2,7 @@ import urllib.error
 import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from importlib.metadata import version
 
 from llmfuse.errors import ProviderError, RateLimitError
 
@@ -15,14 +16,16 @@ class HTTPResponse:
 
 Transport = Callable[[str, dict[str,str], bytes, float] , HTTPResponse]
 
+USER_AGENT = f"llmfuse/{version('llmfuse')} (+https://github.com/AaryanBairagi/llmfuse)"
 
 def urllib_transport(url:str, headers: dict[str,str], body: bytes, timeout: float) -> HTTPResponse :
     """The real transport using the python's standard library."""
+    headers = {"User-Agent" : USER_AGENT, **headers} ##CloudFlare is blocking User Agent
     request = urllib.request.Request(url, data=body, headers=headers, method="POST")
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
             return HTTPResponse(
-                status=response.code,
+                status=response.status,
                 body=response.read().decode("utf-8"),
                 headers={k.lower() : v for k , v in response.headers.items()},
             )

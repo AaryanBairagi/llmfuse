@@ -98,7 +98,7 @@ class FuseClient:
         if bucket is None:
             return provider.complete(prompt) #rate limiting is off
 
-        wait = bucket.time_until_unavailable()
+        wait = bucket.time_until_available()
         
         if wait > self.max_wait:
             raise ThrottledError(provider.name, wait)
