@@ -24,7 +24,7 @@ class FuseClient:
         failure_threshold: int = 5,
         reset_timeout: float = 30.0,
         requests_per_minute : float | None = None,
-        burst : int = 5,    #bucket capacity
+        burst: int = 5,    #bucket capacity
         max_wait : float = 1.0,
         sleep: Callable[[float], None] = time.sleep,
         clock: Callable[[], float] = time.monotonic,
