@@ -14,3 +14,9 @@ class Provider(Protocol):
     name: str
 
     def complete(self, prompt: str) -> str: ...
+
+
+class AsyncProvider(Protocol):
+    name: str
+
+    def complete(self, prompt: str) -> str: ... 

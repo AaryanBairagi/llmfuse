@@ -2,6 +2,7 @@ import time
 from collections.abc import Callable, Sequence
 from functools import partial
 
+from llmfuse._guards import build_guards
 from llmfuse.breaker import CircuitBreaker, CircuitState
 from llmfuse.errors import (
     AllProvidersFailedError,
@@ -30,31 +31,19 @@ class FuseClient:
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
 
-        if not providers:
-            raise ValueError("FuseClient need atleast one provider.")
-
-        names = [provider.name for provider in providers]
-        if len(names) != len(set(names)):
-            raise ValueError("Provider names must be unique.")
-
         self.providers = list(providers)
         self.retry = retry or RetryPolicy()
         self._sleep = sleep
-
-        self._breakers = {
-            provider.name: CircuitBreaker(failure_threshold, reset_timeout, clock=clock)
-            for provider in providers
-        }
-
         self.max_wait = max_wait
 
-        self._buckets : dict[str , TokenBucket] = {}
-
-        for provider in providers:
-            own_limit = getattr(provider, "requests_per_minute", None)
-            limit = own_limit if own_limit is not None else requests_per_minute
-            if limit is not None:
-                self._buckets[provider.name] = TokenBucket(limit / 60, burst, clock=clock)
+        self._breakers, self._buckets = build_guards(
+            providers,
+            failure_threshold=failure_threshold,
+            reset_timeout=reset_timeout,
+            requests_per_minute=requests_per_minute,
+            burst=burst,
+            clock=clock,
+        )
 
 
     def circuit_state(self, provider_name: str) -> CircuitState:

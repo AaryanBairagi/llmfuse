@@ -1,6 +1,7 @@
+import asyncio
 import random
 import time
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import TypeVar
 
@@ -77,5 +78,39 @@ def retry_call(
             if on_retry is not None:
                 on_retry(attempt, error, delay)
             sleep(delay)
+
+    raise AssertionError("unreachable")
+
+
+
+async def async_retry_call(
+    fn: Callable[[], T],
+    policy: RetryPolicy | None = None,
+    *,
+    should_retry: Callable[[BaseException], bool] = is_retryable,
+    on_retry: Callable[[int, BaseException, float], None] | None = None,
+    sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+) -> T:
+    
+    """Async twin of retry_call: same rules, but awaits the call and the waits."""
+    
+    policy = policy or RetryPolicy()
+
+    for attempt in range(1, policy.max_attempts + 1):
+        try:
+            return await fn()
+        
+        except Exception as error:
+            if not should_retry(error):
+                raise
+
+            if attempt == policy.max_attempts:
+                raise RetryExhaustedError(attempt, error) from error
+            
+            delay = policy.delay_for(attempt, error)
+
+            if on_retry is not None:
+                on_retry(attempt, error, delay)
+            await sleep(delay)
 
     raise AssertionError("unreachable")
