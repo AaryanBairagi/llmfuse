@@ -3,14 +3,13 @@ from collections.abc import Callable, Sequence
 from functools import partial
 
 from llmfuse._guards import build_guards
-from llmfuse.breaker import CircuitBreaker, CircuitState
+from llmfuse.breaker import CircuitState
 from llmfuse.errors import (
     AllProvidersFailedError,
     CircuitOpenError,
     LLMFuseError,
     ThrottledError,
 )
-from llmfuse.limiter import TokenBucket
 from llmfuse.provider import Provider, Response
 from llmfuse.retry import RetryPolicy, retry_call
 
@@ -52,7 +51,7 @@ class FuseClient:
 
     def complete(self, prompt: str) -> Response:
         errors: dict[str, BaseException] = {}
-        #Loop over providers and instantiate a breaker, token bucket for each provider
+        #v0.1: Loop over providers and instantiate a breaker, token bucket for each provider
         for provider in self.providers:
             breaker = self._breakers[provider.name]
             if not breaker.allow_request():

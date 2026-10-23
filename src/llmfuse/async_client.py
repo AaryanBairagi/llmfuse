@@ -12,7 +12,7 @@ from llmfuse.errors import (
     ThrottledError,
 )
 from llmfuse.provider import AsyncProvider, Response
-from llmfuse.retry import RetryPolicy, retry_call_async
+from llmfuse.retry import RetryPolicy, async_retry_call
 
 
 class AsyncFuseClient:
@@ -62,7 +62,7 @@ class AsyncFuseClient:
                 continue
 
             try:
-                text = await retry_call_async(
+                text = await async_retry_call(
                     partial(self._call_with_token, provider, prompt),
                     self.retry,
                     sleep=self._sleep,

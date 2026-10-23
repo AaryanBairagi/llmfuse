@@ -1,3 +1,4 @@
+import asyncio
 import json
 from collections.abc import Sequence
 from typing import Any
@@ -20,12 +21,47 @@ class FakeProvider:
 
     def complete(self, prompt: str) -> str:
         self.calls += 1
+        
         if self.errors:
             raise self.errors.pop(0)
         return self.reply
 
+class FakeAsyncProvider:
+    """A fake pretend Async provider: `delay` makes every call take that many seconds."""
+
+    def __init__(
+            self,
+            name: str,
+            *,
+            reply: str = "ok",
+            errors: Sequence[Exception] = (),
+            delay: float = 0.0,
+            requests_per_minute : float | None = None
+    ) -> None:
+
+        self.name = name
+        self.reply = reply 
+        self.errors = list(errors)
+        self.delay = delay
+        self.calls = 0
+        self.requests_per_minute = requests_per_minute
+
+    async def complete(self, prompt: str) -> str:
+        self.calls += 1
+
+        if self.delay:
+            await asyncio.sleep(self.delay)
+
+        if self.errors:
+            raise self.errors.pop(0)
+
+        return self.reply 
+            
+
 
 class FakeClock:
+    """"A pretend clock"""
+    
     def __init__(self) -> None:
         self.now = 0.0
 

@@ -84,7 +84,7 @@ def retry_call(
 
 
 async def async_retry_call(
-    fn: Callable[[], T],
+    fn: Callable[[], Awaitable[T]],
     policy: RetryPolicy | None = None,
     *,
     should_retry: Callable[[BaseException], bool] = is_retryable,
