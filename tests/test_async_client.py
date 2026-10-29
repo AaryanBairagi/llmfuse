@@ -1,4 +1,6 @@
 import asyncio
+import itertools
+import time
 
 import pytest
 
@@ -118,3 +120,40 @@ def test_throttled_error() -> None:
         asyncio.run(client.complete("two"))
 
     assert isinstance(exc_info.value.errors['groq'] , ThrottledError)
+
+
+def test_throttled_errors_dont_break_the_circuit() -> None:
+    clock = FakeClock()
+    groq = FakeAsyncProvider('groq', requests_per_minute = 15)
+    gemini = FakeAsyncProvider('gemini')
+    client = make_client(groq, gemini, burst=1, failure_threshold=1, clock=clock)
+
+    async def two_requests() -> list[str]:
+        first = await client.complete("one")
+        second = await client.complete("two")
+        return [first.provider, second.provider]
+
+    assert asyncio.run(two_requests()) == ["groq" , "gemini"]
+    assert client.circuit_state("groq") is CircuitState.CLOSED
+
+
+async def run_three_at_once(client):
+    await asyncio.gather(*(client.complete(f"q{i}") for i in range(3)))
+
+
+def test_concurrent_requests_respect_the_rate_limit() -> None:
+    # 600 per minute = one token every 0.1 s, bucket holds 1 token.
+    call_times: list[float] = []
+
+    class TimedProvider(FakeAsyncProvider):
+        async def complete(self, prompt: str) -> str:
+            call_times.append(time.monotonic())
+            return await super().complete(prompt)
+
+    client = AsyncFuseClient(
+        providers=[TimedProvider("groq")], requests_per_minute=600, burst=1, max_wait=1.0
+    )
+
+    asyncio.run(run_three_at_once(client))
+    gaps = [later - earlier for earlier, later in itertools.pairwise(call_times)]
+    assert all(gap >= 0.08 for gap in gaps), gaps  
