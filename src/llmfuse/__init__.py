@@ -1,5 +1,6 @@
 from importlib.metadata import version
 
+from llmfuse.adapter import AsyncAdapter, as_async
 from llmfuse.async_client import AsyncFuseClient
 from llmfuse.breaker import CircuitBreaker, CircuitState
 from llmfuse.client import FuseClient
@@ -19,6 +20,7 @@ from llmfuse.transport import Transport, error_from_response, urllib_transport
 
 __all__ = [
     "AllProvidersFailedError",
+    "AsyncAdapter",
     "AsyncFuseClient",
     "AsyncProvider",
     "CircuitBreaker",
@@ -35,6 +37,7 @@ __all__ = [
     "ThrottledError",
     "TokenBucket",
     "Transport",
+    "as_async",
     "async_retry_call",
     "error_from_response",
     "is_retryable",
