@@ -9,8 +9,8 @@ from llmfuse.breaker import CircuitState
 from llmfuse.errors import (
     AllProvidersFailedError,
     CircuitOpenError,
+    DeadlineExceededError,
     LLMFuseError,
-    ProviderError,
     ThrottledError,
 )
 from llmfuse.provider import AsyncProvider, Response
