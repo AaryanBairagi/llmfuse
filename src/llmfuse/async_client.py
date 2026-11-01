@@ -90,7 +90,7 @@ class AsyncFuseClient:
         waiting = self._route()
         running : set[asyncio.Task[Response | None]] = set()
 
-        def start_next(): #if response not in hedge_after send request to next provider 
+        def start_next() -> None: #if response not in hedge_after send request to next provider 
             provider = waiting.pop(0) 
             running.add(asyncio.create_task(self._ask(provider, prompt, errors)))
 
@@ -98,7 +98,7 @@ class AsyncFuseClient:
 
         try:
             while running:
-                done, pending = asyncio.wait(
+                done, pending = await asyncio.wait(
                     running,
                     timeout = self.hedge_after if waiting else None,
                     return_when = asyncio.FIRST_COMPLETED
@@ -112,7 +112,8 @@ class AsyncFuseClient:
 
                 for task in done:
                     response = task.result()
-                    return response
+                    if response is not None:
+                        return response
 
                 for _ in done:  #none of them returned a Response: each one failed, and _ask returned None.
                     if waiting:
@@ -129,14 +130,14 @@ class AsyncFuseClient:
     async def _try_providers(self, prompt: str, errors: dict[str, BaseException]) -> Response:
         """No hedging: try providers one after another until one answers."""
         for provider in self._route():
-            response = self._await(provider, prompt, errors)
+            response = await self._ask(provider, prompt, errors)
             if response is not None:
                 return response
 
         raise AllProvidersFailedError(errors)
     
 
-    async def _ask(self, provider: AsyncProvider, prompt: str, errors: dict[str, BaseException]) -> Response:
+    async def _ask(self, provider: AsyncProvider, prompt: str, errors: dict[str, BaseException]) -> Response | None:
         """Try ONE provider, with retries. Returns None if it failed (the reason goes in `errors`)."""
         breaker = self._breakers[provider.name]
 
