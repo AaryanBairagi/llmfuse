@@ -7,6 +7,7 @@ from llmfuse.client import FuseClient
 from llmfuse.errors import (
     AllProvidersFailedError,
     CircuitOpenError,
+    DeadlineExceededError,
     LLMFuseError,
     ProviderError,
     RateLimitError,
@@ -26,6 +27,7 @@ __all__ = [
     "CircuitBreaker",
     "CircuitOpenError",
     "CircuitState",
+    "DeadlineExceededError",
     "FuseClient",
     "LLMFuseError",
     "Provider",

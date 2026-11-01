@@ -66,3 +66,16 @@ def test_in_flight_goes_back_to_zero_even_when_cancelled() -> None:
 
     asyncio.run(main())
     assert client.in_flight("groq") == 0
+
+
+def test_in_flight_counts_requests_in_progress() -> None:
+    client = AsyncFuseClient(providers=[FakeAsyncProvider("groq", delay=0.05)])
+
+    async def main() -> None:
+        task = asyncio.create_task(client.complete("hello"))
+        await asyncio.sleep(0.01)  # let the task start and pause inside the provider
+        assert client.in_flight("groq") == 1
+        await task
+        assert client.in_flight("groq") == 0
+
+    asyncio.run(main())

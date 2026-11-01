@@ -91,9 +91,7 @@ async def async_retry_call(
     on_retry: Callable[[int, BaseException, float], None] | None = None,
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
 ) -> T:
-    
     """Async twin of retry_call: same rules, but awaits the call and the waits."""
-    
     policy = policy or RetryPolicy()
 
     for attempt in range(1, policy.max_attempts + 1):

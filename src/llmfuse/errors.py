@@ -83,5 +83,5 @@ class DeadlineExceededError(LLMFuseError):
     def __init__(self, timeout: float, errors: dict[str, BaseException]) -> None:
         tried = "; ".join(f"{name} : {error!r}" for name, error in errors.items())
         super().__init__(f"Deadline of {timeout:.2f}s exceeded. Before that : {tried or 'no provider finished'}")
-        self.timeout = timeout
+        self.timeout = timeout 
         self.errors = dict(errors)
