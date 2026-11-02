@@ -881,10 +881,10 @@ flowchart LR
 
 | Response | Raised as | Retried? |
 |---|---|---|
-| `429 Too Many Requests` | `RateLimitError` | ✅ Waits `Retry-After` if numeric, otherwise backoff |
-| `5xx`, `408`, timeouts, connection failures | `ProviderError(retryable=True)` | ✅ With backoff |
-| `400`, `401`, `403`, `404` and other `4xx` | `ProviderError(retryable=False)` | ❌ Fails over immediately |
-| `200` with malformed or empty content | `ProviderError(retryable=False)` | ❌ Fails over immediately |
+| `429 Too Many Requests` | `RateLimitError` | ✓ Waits `Retry-After` if numeric, otherwise backoff |
+| `5xx`, `408`, timeouts, connection failures | `ProviderError(retryable=True)` | ✓ With backoff |
+| `400`, `401`, `403`, `404` and other `4xx` | `ProviderError(retryable=False)` | ✗ Fails over immediately |
+| `200` with malformed or empty content | `ProviderError(retryable=False)` | ✗ Fails over immediately |
 
 ---
 
