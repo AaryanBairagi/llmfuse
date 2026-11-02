@@ -20,10 +20,10 @@ async def main(budget: float) -> None:
 
     try:
         response = await client.complete("Reply with pong")
-        print(f"✅ {response.provider}: {response.text!r} in {time.monotonic() - start:.2f}s")
+        print(f"{response.provider}: {response.text!r} in {time.monotonic() - start:.2f}s")
 
     except DeadlineExceededError as error:
-        print(f"⏱️  gave up after {time.monotonic() - start:.2f}s: {error}")
+        print(f"⏱ gave up after {time.monotonic() - start:.2f}s: {error}")
 
 
 if __name__ == "__main__":

@@ -656,11 +656,11 @@ Measured on a MacBook Air with Python 3.12; your numbers will differ slightly.
 
 | Provider | Class | API format | Auth | Key env var | Status |
 |---|---|---|---|---|---|
-| Groq | `GroqProvider` | Chat completions | Bearer | `GROQ_API_KEY` | ✅ |
-| Google Gemini | `GeminiProvider` | Chat completions (OpenAI-compatible endpoint) | Bearer | `GEMINI_API_KEY` | ✅ |
-| OpenAI | `OpenAIProvider` | Chat completions | Bearer | `OPENAI_API_KEY` | ✅ |
-| Anthropic | `AnthropicProvider` | Messages API | `x-api-key` | `ANTHROPIC_API_KEY` | ✅ |
-| Any compatible API | `ChatCompatibleProvider` | Chat completions | Bearer (optional) | pass `api_key=` | ✅ |
+| Groq | `GroqProvider` | Chat completions | Bearer | `GROQ_API_KEY` | ✓ |
+| Google Gemini | `GeminiProvider` | Chat completions (OpenAI-compatible endpoint) | Bearer | `GEMINI_API_KEY` | ✓ |
+| OpenAI | `OpenAIProvider` | Chat completions | Bearer | `OPENAI_API_KEY` | ✓ |
+| Anthropic | `AnthropicProvider` | Messages API | `x-api-key` | `ANTHROPIC_API_KEY` | ✓ |
+| Any compatible API | `ChatCompatibleProvider` | Chat completions | Bearer (optional) | pass `api_key=` | ✓ |
 
 All built-in providers are imported from `llmfuse.providers`. `OpenAIProvider` sends `max_completion_tokens`
 (required by OpenAI's reasoning models); the other chat-completions providers send `max_tokens`.
