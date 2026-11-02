@@ -4,7 +4,7 @@
 
 **Production-grade reliability for LLM calls.**
 <br/>
-Retries with backoff · Circuit breakers · Rate limiting · Multi-provider failover. One call.
+Retries with backoff · Circuit breakers · Rate limiting · Multi-provider failover · Async with hedged requests.
 
 [![CI](https://github.com/AaryanBairagi/llmfuse/actions/workflows/ci.yml/badge.svg)](https://github.com/AaryanBairagi/llmfuse/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/llmfuse?color=2A6DB2)](https://pypi.org/project/llmfuse/)
@@ -30,9 +30,24 @@ response = client.complete("Explain retrieval-augmented generation in one senten
 If Groq is slow, rate-limited or down, `llmfuse` retries it sensibly, stops calling it once it's
 clearly broken, and answers from Gemini instead. Your application just gets a response.
 
+Need many requests at once? `AsyncFuseClient` does the same with `await`, and can also cap every call
+with a deadline and send a backup request when a provider is slow:
+
+```python
+from llmfuse import AsyncFuseClient, as_async
+
+client = AsyncFuseClient(
+    providers=[as_async(GroqProvider(model="...")), as_async(GeminiProvider(model="..."))],
+    timeout=5.0,       # give up after 5 s in total
+    hedge_after=2.0,   # no answer after 2 s? ask Gemini too, keep the first answer
+)
+response = await client.complete("Explain RAG in one sentence.")  # inside an async function
+```
+
 > [!NOTE]
-> **llmfuse is in alpha (`0.1.0`).** The core is complete, fully tested and verified live against Groq,
+> **llmfuse is in alpha (`0.2.0`).** The core is complete, fully tested and verified live against Groq,
 > Gemini, OpenAI and Anthropic, but the public API may still change before `1.0`.
+> `0.2.0` adds the async client, deadlines, least-busy routing and hedged requests. See the [changelog](CHANGELOG.md).
 
 ---
 
@@ -53,6 +68,11 @@ clearly broken, and answers from Gemini instead. Your application just gets a re
   - [Write a custom provider](#7-write-a-custom-provider)
   - [Use retries on their own](#8-use-retries-on-their-own)
   - [Test your application without API keys](#9-test-your-application-without-api-keys)
+  - [Run many requests at once (async)](#10-run-many-requests-at-once-async)
+  - [Spread load across providers](#11-spread-load-across-providers)
+  - [Set a deadline](#12-set-a-deadline)
+  - [Hedge slow requests](#13-hedge-slow-requests)
+- [Benchmarks](#benchmarks)
 - [Supported Providers](#supported-providers)
 - [API Reference](#api-reference)
 - [Error Reference](#error-reference)
@@ -77,6 +97,8 @@ timeouts and full outages. Handling all of that correctly takes more than a `try
 | One provider outage takes your feature down | Requests fail over to the next provider automatically |
 | Naive retries hammer an already-struggling API | Exponential backoff with full jitter spreads retries out |
 | Every request waits through retries against a provider that is clearly dead | A circuit breaker skips the dead provider instantly, then re-tests it later |
+| One slow response holds up everything behind it | `AsyncFuseClient` runs requests concurrently, and hedged requests route around a stuck provider |
+| A request can hang for minutes across retries and providers | One `timeout=` caps the whole call |
 | You discover rate limits by getting HTTP 429s | A token bucket paces requests *before* the provider rejects them |
 | A bad API key gets retried, wasting time and money | Permanent errors fail over immediately, with no retries |
 | Retry and failover logic is copy-pasted into every service | One small, typed, dependency-free library |
@@ -94,6 +116,10 @@ timeouts and full outages. Handling all of that correctly takes more than a `try
 | **Smart error classification** | 429/5xx/timeouts are retried; 400/401/403/404 fail over immediately; bugs in your code are never hidden. |
 | **Any LLM** | Groq, Gemini, OpenAI, Anthropic, local Ollama, or any OpenAI-compatible API, or your own provider class. |
 | **Zero runtime dependencies** | HTTP is handled by Python's standard library. Installing llmfuse adds nothing else. |
+| **Async client** | `AsyncFuseClient` runs many requests concurrently with the same reliability rules. Wrap any provider with `as_async(...)`. |
+| **Deadlines** | One `timeout=` budget covers every retry, wait and provider. |
+| **Hedged requests** | If a provider is slow, a backup request goes to the next one. The first answer wins; the rest are cancelled. |
+| **Least-busy routing** | Overlapping requests go to the provider with the fewest calls in flight. |
 | **Testing utilities included** | Fake providers, clocks and transports let you test your app offline, instantly and deterministically. |
 | **Fully typed** | Ships `py.typed`; checked with mypy. |
 
@@ -522,6 +548,107 @@ def test_my_feature_survives_an_outage() -> None:
 | `FakeProvider(name, reply=..., errors=[...])` | Simulate a provider that fails N times, then answers. Counts calls in `.calls`. |
 | `FakeClock()` | Control time in tests: `clock.advance(30)` makes "30 seconds" pass instantly. Pass as `clock=`. |
 | `FakeTransport([...])` | Script raw HTTP responses for a real provider adapter. Records every request in `.requests`. |
+| `FakeAsyncProvider(name, reply=..., errors=[...], delay=0.0)` | The async version of `FakeProvider`. `delay` makes every call take that many seconds. |
+
+### 10. Run many requests at once (async)
+
+```python
+import asyncio
+
+from llmfuse import AsyncFuseClient, as_async
+from llmfuse.providers import GeminiProvider, GroqProvider
+
+client = AsyncFuseClient(providers=[
+    as_async(GroqProvider(model="...")),
+    as_async(GeminiProvider(model="...")),
+])
+
+async def main() -> None:
+    questions = ["What is RAG?", "Explain TCP in one line.", "Name three sorting algorithms."]
+    answers = await asyncio.gather(*(client.complete(q) for q in questions))
+    for response in answers:
+        print(response.provider, response.text)
+
+asyncio.run(main())
+```
+
+`AsyncFuseClient` has exactly the same retry, circuit-breaker, rate-limit and failover behaviour as
+`FuseClient`, and its `complete` is a coroutine. `as_async(...)` wraps any sync provider (built-in or your
+own) and runs its blocking HTTP call in a worker thread, so the event loop is never blocked. While one
+request waits (for the network, a rate-limit token or a retry backoff), the others keep running.
+
+Any object with a `name` and an `async def complete(self, prompt: str) -> str` method also works as an
+async provider, so you can mix wrapped and native async providers in one client.
+
+> [!TIP]
+> Python's default thread pool runs at most `min(32, CPU cores + 4)` blocking calls at once. For more
+> parallel requests, give the event loop a bigger pool:
+> `asyncio.get_running_loop().set_default_executor(ThreadPoolExecutor(max_workers=64))`.
+
+### 11. Spread load across providers
+
+```python
+client = AsyncFuseClient(providers=[...], routing="least_busy")
+```
+
+| `routing` | Behaviour |
+|---|---|
+| `"in_order"` (default) | Always try providers in list order. Use this when the list is a priority, e.g. cheapest first. |
+| `"least_busy"` | Try the provider with the fewest requests in flight first. Ties keep list order, so a quiet app still prefers the first provider. |
+
+`client.in_flight("groq")` shows how many requests are running on a provider right now.
+
+### 12. Set a deadline
+
+```python
+client = AsyncFuseClient(providers=[...], timeout=5.0)    # default budget for every call
+response = await client.complete("...", timeout=2.0)       # override it for one call
+```
+
+The deadline covers the whole call: every retry, backoff, rate-limit wait and provider. When it runs out,
+the call is cancelled and `DeadlineExceededError` is raised. Its `.errors` shows what each provider did
+before time ran out. Running out of time never counts as a provider failure.
+
+A call that was already running in a worker thread finishes in the background, and its result is discarded.
+
+### 13. Hedge slow requests
+
+```python
+client = AsyncFuseClient(providers=[...], hedge_after=2.0)
+```
+
+If no provider has answered after `hedge_after` seconds, the next provider is started as a backup while
+the first keeps running. The first good answer wins and the others are cancelled. A provider that
+*fails* is still replaced immediately, without waiting for the timer. The idea comes from Google's
+paper *The Tail at Scale* (Dean and Barroso, 2013).
+
+Set `hedge_after` near your normal p95 latency. Lower values cut slow requests further but send more
+duplicate calls, and each one costs an API call and a rate-limit token. Combine it with `timeout=` to
+cap the total.
+
+---
+
+## Benchmarks
+
+Simulated providers, so anyone can reproduce it without API keys or cost:
+
+```bash
+uv run benchmarks/bench.py
+```
+
+40 requests and three providers. Most calls take 50–150 ms, but 1 in 10 gets stuck for 1 s (the "slow tail").
+
+| Mode | Total time | p50 | p95 | p99 | Provider calls |
+|---|---|---|---|---|---|
+| `FuseClient` (sync, one after another) | 9.64 s | 0.11 s | 1.01 s | 1.01 s | 40 |
+| `AsyncFuseClient` (all at once) | 1.01 s | 0.11 s | 1.00 s | 1.00 s | 40 |
+| `AsyncFuseClient` + `hedge_after=0.3` | 0.72 s | 0.11 s | 0.45 s | 0.72 s | 47 |
+
+- **Async** finishes the same 40 requests about **9× faster**, because the waits overlap instead of adding up.
+- **Hedging** cuts p95 latency from **1.00 s to 0.45 s** and the slowest request from 1.00 s to 0.72 s,
+  for **17% more provider calls**.
+
+Measured on a MacBook Air with Python 3.12; your numbers will differ slightly.
 
 ---
 
@@ -578,6 +705,45 @@ FuseClient(
 |---|---|---|
 | `complete(prompt: str)` | `Response` | Get a completion, with retries, rate limiting, circuit breaking and failover. Raises `AllProvidersFailedError` if no provider answers. |
 | `circuit_state(provider_name: str)` | `CircuitState` | Current breaker state for a provider. |
+
+### `AsyncFuseClient`
+
+```python
+AsyncFuseClient(
+    *,
+    providers: Sequence[AsyncProvider],
+    retry: RetryPolicy | None = None,
+    failure_threshold: int = 5,
+    reset_timeout: float = 30.0,
+    requests_per_minute: float | None = None,
+    burst: int = 5,
+    max_wait: float = 1.0,
+    timeout: float | None = None,
+    hedge_after: float | None = None,
+    routing: Literal["in_order", "least_busy"] = "in_order",
+    sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+    clock: Callable[[], float] = time.monotonic,
+)
+```
+
+The shared parameters work exactly as in `FuseClient`. The new ones:
+
+| Parameter | Default | Description |
+|---|---|---|
+| `providers` | **required** | Async providers. Wrap sync ones with `as_async(...)`. |
+| `timeout` | `None` | Total time budget per call, in seconds. `None` means no limit. |
+| `hedge_after` | `None` | Seconds to wait before starting a backup on the next provider. `None` turns hedging off. |
+| `routing` | `"in_order"` | `"in_order"` or `"least_busy"`. |
+| `sleep` | `asyncio.sleep` | Async sleep function. Override in tests. |
+
+| Method | Returns | Description |
+|---|---|---|
+| `await complete(prompt: str, *, timeout: float \| None = None)` | `Response` | Like `FuseClient.complete`. `timeout` overrides the client's default for this call. Raises `DeadlineExceededError` when the budget runs out. |
+| `circuit_state(provider_name: str)` | `CircuitState` | Current breaker state for a provider. |
+| `in_flight(provider_name: str)` | `int` | Requests this client is running on that provider right now. |
+
+**Related:** `as_async(provider)` wraps a sync provider in an `AsyncAdapter`. `AsyncProvider` is the protocol
+for native async providers. `async_retry_call(fn, ...)` is the async twin of `retry_call`.
 
 ### `Response`
 
@@ -697,7 +863,8 @@ LLMFuseError                     base class for everything llmfuse raises
 ├── RetryExhaustedError          all attempts failed        .attempts  .last_error
 ├── CircuitOpenError             provider skipped: circuit is open
 ├── ThrottledError               provider skipped: no rate-limit capacity within max_wait   .wait
-└── AllProvidersFailedError      no provider answered       .errors  (provider name → error)
+├── AllProvidersFailedError      no provider answered       .errors  (provider name → error)
+└── DeadlineExceededError        the timeout budget ran out .timeout  .errors
 ```
 
 How responses are classified:
@@ -842,6 +1009,8 @@ version, a minimal code sample and the full error. **Remove API keys from anythi
 | **Fail fast on permanent errors** | Bad keys, bad requests and unknown models are never retried. |
 | **Never hide bugs** | Only llmfuse's own error types trigger retries or failover. Everything else propagates. |
 | **Pacing is not failure** | Local throttling never counts against a provider's circuit breaker. |
+| **Slow is not broken** | A call cancelled by a deadline or a winning hedge never counts against a circuit breaker. |
+| **One code path** | The async client reuses the sync providers through an adapter, so every provider is written and tested once. |
 | **Count what providers count** | Every attempt, including retries, consumes rate-limit capacity. |
 | **Correct time** | Durations use `time.monotonic()`, which never jumps when the system clock changes. |
 | **Testable by design** | Clock, sleep and transport are injectable, so every behaviour is tested offline and deterministically. |
@@ -854,9 +1023,10 @@ In the spirit of honest engineering, here is what llmfuse does **not** do yet:
 
 | Area | Current behaviour |
 |---|---|
-| Concurrency | `FuseClient` is synchronous and **not thread-safe**. Use one client per thread, or guard calls with a lock. Async support is planned. |
+| Concurrency | `FuseClient` is synchronous and **not thread-safe**; use `AsyncFuseClient` for concurrent requests. Wrapped providers use one worker thread per call in flight. |
 | Prompt format | Single-turn text prompts only. No system prompts, multi-turn history, streaming, tool calls or images yet. |
-| Timeouts | `timeout` applies per attempt. There is no overall time budget yet, so a provider that keeps timing out can take `max_attempts × timeout` before failover. |
+| Timeouts | In `FuseClient`, `timeout` applies per attempt, so a provider that keeps timing out can take `max_attempts × timeout` before failover. `AsyncFuseClient` adds an overall `timeout=` budget. |
+| Cancellation | Python can't stop a thread from outside. A cancelled call (deadline or losing hedge) finishes in the background and still costs one API call. |
 | `Retry-After` | Numeric seconds are honoured; HTTP-date values fall back to normal backoff. |
 | Observability | No built-in logging or metrics hooks on `FuseClient` yet. |
 | State | Breaker and rate-limit state live in memory, per client instance. |
@@ -874,9 +1044,12 @@ In the spirit of honest engineering, here is what llmfuse does **not** do yet:
 - [x] Per-provider rate limits declared by each provider
 - [x] Continuous integration across Python 3.10–3.13
 - [x] First PyPI release
-- [ ] Benchmarks under simulated outages
-- [ ] Overall time budget (deadline) across retries and providers
-- [ ] Async client
+- [x] Async client (`0.2.0`)
+- [x] Overall time budget (deadline) across retries and providers
+- [x] Least-busy routing
+- [x] Hedged requests
+- [x] Benchmarks with a simulated slow tail
+- [ ] Native async HTTP providers (no worker threads)
 - [ ] System prompts and multi-turn conversations
 - [ ] Logging and metrics hooks
 

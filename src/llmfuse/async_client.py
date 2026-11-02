@@ -98,7 +98,7 @@ class AsyncFuseClient:
 
         try:
             while running:
-                done, pending = await asyncio.wait(
+                done, _ = await asyncio.wait(
                     running,
                     timeout = self.hedge_after if waiting else None,
                     return_when = asyncio.FIRST_COMPLETED
