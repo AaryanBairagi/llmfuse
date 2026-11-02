@@ -75,3 +75,13 @@ class ThrottledError(LLMFuseError):
         super().__init__(f"Throttled : Provider {provider!r} would exceed its rate limit. Wait for {wait:.2f} seconds.")
         self.provider = provider
         self.wait = wait
+
+
+class DeadlineExceededError(LLMFuseError):
+    """The whole call ran out of time (its `timeout` budget) before any provider answered."""
+
+    def __init__(self, timeout: float, errors: dict[str, BaseException]) -> None:
+        tried = "; ".join(f"{name} : {error!r}" for name, error in errors.items())
+        super().__init__(f"Deadline of {timeout:.2f}s exceeded. Before that : {tried or 'no provider finished'}")
+        self.timeout = timeout 
+        self.errors = dict(errors)

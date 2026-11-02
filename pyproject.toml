@@ -1,6 +1,6 @@
 [project]
 name = "llmfuse"
-version = "0.1.0"
+version = "0.2.0"
 description = "Reliability for LLM calls: retries with backoff, circuit breakers, rate limiting and multi-provider failover."
 readme = "README.md"
 license = "MIT"
@@ -8,7 +8,7 @@ license-files = ["LICENSE"]
 authors = [{ name = "Aaryan Bairagi", email = "aaryanbairagi11@gmail.com" }]
 requires-python = ">=3.10"
 dependencies = []
-keywords = ["llm", "retry", "backoff", "circuit-breaker", "rate-limit", "failover", "openai", "anthropic", "gemini", "groq"]
+keywords = ["llm", "async", "hedging", "retry", "backoff", "circuit-breaker", "rate-limit", "failover", "openai", "anthropic", "gemini", "groq"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",

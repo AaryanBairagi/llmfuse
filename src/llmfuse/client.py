@@ -2,14 +2,14 @@ import time
 from collections.abc import Callable, Sequence
 from functools import partial
 
-from llmfuse.breaker import CircuitBreaker, CircuitState
+from llmfuse._guards import build_guards
+from llmfuse.breaker import CircuitState
 from llmfuse.errors import (
     AllProvidersFailedError,
     CircuitOpenError,
     LLMFuseError,
     ThrottledError,
 )
-from llmfuse.limiter import TokenBucket
 from llmfuse.provider import Provider, Response
 from llmfuse.retry import RetryPolicy, retry_call
 
@@ -24,37 +24,25 @@ class FuseClient:
         failure_threshold: int = 5,
         reset_timeout: float = 30.0,
         requests_per_minute : float | None = None,
-        burst : int = 5,    #bucket capacity
+        burst: int = 5,    #bucket capacity
         max_wait : float = 1.0,
         sleep: Callable[[float], None] = time.sleep,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
 
-        if not providers:
-            raise ValueError("FuseClient need atleast one provider.")
-
-        names = [provider.name for provider in providers]
-        if len(names) != len(set(names)):
-            raise ValueError("Provider names must be unique.")
-
         self.providers = list(providers)
         self.retry = retry or RetryPolicy()
         self._sleep = sleep
-
-        self._breakers = {
-            provider.name: CircuitBreaker(failure_threshold, reset_timeout, clock=clock)
-            for provider in providers
-        }
-
         self.max_wait = max_wait
 
-        self._buckets : dict[str , TokenBucket] = {}
-
-        for provider in providers:
-            own_limit = getattr(provider, "requests_per_minute", None)
-            limit = own_limit if own_limit is not None else requests_per_minute
-            if limit is not None:
-                self._buckets[provider.name] = TokenBucket(limit / 60, burst, clock=clock)
+        self._breakers, self._buckets = build_guards(
+            providers,
+            failure_threshold=failure_threshold,
+            reset_timeout=reset_timeout,
+            requests_per_minute=requests_per_minute,
+            burst=burst,
+            clock=clock,
+        )
 
 
     def circuit_state(self, provider_name: str) -> CircuitState:
@@ -63,7 +51,7 @@ class FuseClient:
 
     def complete(self, prompt: str) -> Response:
         errors: dict[str, BaseException] = {}
-        #Loop over providers and instantiate a breaker, token bucket for each provider
+        #v0.1: Loop over providers and instantiate a breaker, token bucket for each provider
         for provider in self.providers:
             breaker = self._breakers[provider.name]
             if not breaker.allow_request():
